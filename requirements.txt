@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+pymupdf
+pypdf
+pdfplumber
+reportlab
+pytesseract
+markdown
+pillow
+numpy
+httpx
+pytest
