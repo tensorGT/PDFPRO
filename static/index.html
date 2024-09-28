@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body class="theme-normal">
+  <header class="topbar">
+    <div class="topbar-group">
+      <button id="btn-toggle-left" class="icon-btn" title="Toggle pages sidebar">Pages</button>
+      <label class="file-btn">
+        Open PDF
+        <input id="file-input" type="file" accept="application/pdf" hidden />
+      </label>
+      <button id="btn-download" class="primary-btn" disabled>Download</button>
+    </div>
+
+    <div class="topbar-group nav-controls">
+      <button id="btn-prev" class="icon-btn" disabled>Prev</button>
+      <span class="page-jump">
+        <input id="page-num-input" type="number" min="1" value="1" disabled />
+        <span>/ <span id="page-count">0</span></span>
+      </span>
+      <button id="btn-next" class="icon-btn" disabled>Next</button>
+    </div>
+
+    <div class="topbar-group zoom-controls">
+      <button id="btn-zoom-out" class="icon-btn" disabled>-</button>
+      <span id="zoom-label">100%</span>
+      <button id="btn-zoom-in" class="icon-btn" disabled>+</button>
+      <button id="btn-fit-width" class="icon-btn" disabled>Fit</button>
+    </div>
+
+    <div class="topbar-group">
+      <div class="search-box">
+        <input id="search-input" type="text" placeholder="Search text..." disabled />
+        <button id="btn-search" class="icon-btn" disabled>Find</button>
+        <span id="search-status" class="muted small"></span>
+      </div>
+      <select id="reading-mode" aria-label="Reading mode">
+        <option value="normal">Normal mode</option>
+        <option value="dark">Dark mode</option>
+        <option value="sepia">Sepia mode</option>
+        <option value="contrast">High contrast</option>
+      </select>
+      <button id="btn-toggle-right" class="icon-btn" title="Toggle tools drawer">Tools</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside id="left-sidebar" class="sidebar left-sidebar">
+      <div class="sidebar-header">
+        <span>Pages</span>
+        <div class="sidebar-actions">
+          <button id="btn-apply-organize" class="small-btn primary-btn" disabled>Save order</button>
+          <button id="btn-close-left" class="small-btn mobile-only">Close</button>
+        </div>
+      </div>
+      <p class="hint">Drag pages to reorder, or use the mini buttons to rotate or drop them.</p>
+      <div id="thumbnails-list" class="thumbnails-list">
+        <div class="empty-state">Drop a PDF anywhere or hit Open PDF to get started.</div>
+      </div>
+    </aside>
+
+    <section id="viewer-area" class="viewer-area">
+      <div class="annot-toolbar" id="annot-toolbar">
+        <button class="tool-chip active" data-tool="pan">Pan</button>
+        <button class="tool-chip" data-tool="highlight">Highlight</button>
+        <button class="tool-chip" data-tool="underline">Underline</button>
+        <button class="tool-chip" data-tool="strikethrough">Strike</button>
+        <button class="tool-chip" data-tool="draw">Draw</button>
+        <button class="tool-chip" data-tool="rect">Rect</button>
+        <button class="tool-chip" data-tool="circle">Circle</button>
+        <button class="tool-chip" data-tool="arrow">Arrow</button>
+        <button class="tool-chip" data-tool="text">Text</button>
+        <button class="tool-chip" data-tool="note">Note</button>
+        <button class="tool-chip" data-tool="stamp">Stamp</button>
+        <button class="tool-chip" data-tool="signature">Sign</button>
+        <button class="tool-chip" data-tool="crop">Crop box</button>
+        <button class="tool-chip" data-tool="redact">Redact box</button>
+
+        <div class="annot-options">
+          <input id="annot-color" type="color" value="#facc15" title="Color" />
+          <input id="annot-width" type="range" min="1" max="10" value="3" title="Stroke width" />
+          <button id="btn-undo-annot" class="small-btn" disabled>Undo</button>
+          <button id="btn-redo-annot" class="small-btn" disabled>Redo</button>
+          <button id="btn-burn-annots" class="small-btn primary-btn" disabled>Save edits to PDF</button>
+          <button id="btn-apply-crop" class="small-btn warn-btn hidden">Apply crop</button>
+          <button id="btn-apply-redact-boxes" class="small-btn danger-btn hidden">Redact boxes</button>
+        </div>
+      </div>
+
+      <div id="canvas-container" class="canvas-container">
+        <div id="drop-overlay" class="drop-overlay">
+          <div class="drop-card">
+            <h2>Drop your PDF here</h2>
+            <p>Or use the Open PDF button up top. Everything runs right here.</p>
+          </div>
+        </div>
+        <div id="page-stage" class="page-stage hidden">
+          <canvas id="pdf-canvas"></canvas>
+          <canvas id="annot-canvas"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <aside id="right-sidebar" class="sidebar right-sidebar">
+      <div class="sidebar-header">
+        <span>Toolbox</span>
+        <button id="btn-close-right" class="small-btn mobile-only">Close</button>
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="pages">Pages</button>
+        <button class="tab-btn" data-tab="convert">Convert</button>
+        <button class="tab-btn" data-tab="security">Security</button>
+        <button class="tab-btn" data-tab="pipeline">Batch</button>
+      </div>
+
+      <div id="tab-pages" class="tab-panel active">
+        <div class="tool-card">
+          <h3>Merge PDFs</h3>
+          <input id="merge-files" type="file" accept="application/pdf" multiple />
+          <button id="btn-merge" class="primary-btn full-width">Merge and open</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Split PDF</h3>
+          <select id="split-mode">
+            <option value="ranges">Page ranges (e.g. 1-3;4-6)</option>
+            <option value="every_n">Every N pages</option>
+            <option value="each_page">Every single page</option>
+            <option value="bookmarks">By top bookmarks</option>
+          </select>
+          <input id="split-spec" type="text" placeholder="1-2; 3-5" value="1" />
+          <input id="split-chunk" type="number" min="1" value="2" class="hidden" placeholder="Pages per file" />
+          <button id="btn-split" class="primary-btn full-width">Split to ZIP</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Resize Pages</h3>
+          <select id="resize-preset">
+            <option value="a4">A4</option>
+            <option value="letter">Letter</option>
+            <option value="legal">Legal</option>
+            <option value="a3">A3</option>
+            <option value="a5">A5</option>
+            <option value="custom">Custom points</option>
+          </select>
+          <div id="resize-custom-row" class="row hidden">
+            <input id="resize-w" type="number" value="595" placeholder="Width" />
+            <input id="resize-h" type="number" value="842" placeholder="Height" />
+          </div>
+          <input id="resize-pages" type="text" value="all" placeholder="Pages (all or 1-3)" />
+          <button id="btn-resize" class="primary-btn full-width">Resize PDF</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Page Numbers & Headers</h3>
+          <select id="num-pos">
+            <option value="bottom-center">Bottom center</option>
+            <option value="bottom-right">Bottom right</option>
+            <option value="bottom-left">Bottom left</option>
+            <option value="top-center">Top center</option>
+            <option value="top-right">Top right</option>
+          </select>
+          <input id="num-fmt" type="text" value="Page {n} of {total}" placeholder="Format" />
+          <input id="num-header" type="text" placeholder="Optional header text" />
+          <input id="num-footer" type="text" placeholder="Optional footer text" />
+          <button id="btn-page-numbers" class="primary-btn full-width">Stamp numbers</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Watermark</h3>
+          <input id="wm-text" type="text" value="CONFIDENTIAL" placeholder="Watermark text" />
+          <div class="row">
+            <input id="wm-opacity" type="number" step="0.05" min="0.05" max="1" value="0.25" title="Opacity" />
+            <input id="wm-angle" type="number" value="45" title="Angle" />
+            <input id="wm-color" type="color" value="#cc2222" />
+          </div>
+          <label class="check-row"><input id="wm-tiled" type="checkbox" /> Tile across page</label>
+          <button id="btn-watermark" class="primary-btn full-width">Add watermark</button>
+        </div>
+      </div>
+
+      <div id="tab-convert" class="tab-panel">
+        <div class="tool-card">
+          <h3>PDF to Images</h3>
+          <div class="row">
+            <select id="img-fmt">
+              <option value="png">PNG</option>
+              <option value="jpg">JPG</option>
+              <option value="webp">WebP</option>
+            </select>
+            <input id="img-dpi" type="number" min="72" max="300" value="150" title="DPI" />
+          </div>
+          <input id="img-pages" type="text" value="all" placeholder="Pages (all or 1-3)" />
+          <button id="btn-to-images" class="primary-btn full-width">Export images ZIP</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Images to PDF</h3>
+          <input id="from-images-files" type="file" accept="image/*" multiple />
+          <button id="btn-from-images" class="primary-btn full-width">Make PDF from images</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Extract Text / Markdown</h3>
+          <select id="text-mode">
+            <option value="plain">Plain text</option>
+            <option value="markdown">Markdown</option>
+          </select>
+          <input id="text-pages" type="text" value="all" placeholder="Pages" />
+          <button id="btn-to-text" class="primary-btn full-width">Extract text</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Extract Tables</h3>
+          <select id="table-fmt">
+            <option value="csv">CSV (ZIP)</option>
+            <option value="json">JSON</option>
+          </select>
+          <input id="table-pages" type="text" value="all" placeholder="Pages" />
+          <button id="btn-to-tables" class="primary-btn full-width">Extract tables</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>HTML / Markdown to PDF</h3>
+          <textarea id="markup-input" rows="4" placeholder="# Hello&#10;Write Markdown or HTML here..."></textarea>
+          <label class="check-row"><input id="markup-is-md" type="checkbox" checked /> Treat as Markdown</label>
+          <button id="btn-from-markup" class="primary-btn full-width">Build PDF</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Assets & OCR</h3>
+          <button id="btn-extract-assets" class="full-width">Extract embedded images & files</button>
+          <div class="row" style="margin-top:8px;">
+            <input id="ocr-lang" type="text" value="eng" placeholder="Lang (eng)" />
+            <button id="btn-ocr" class="primary-btn">Run OCR</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-security" class="tab-panel">
+        <div class="tool-card">
+          <h3>Compress PDF</h3>
+          <select id="compress-level">
+            <option value="low">Low compression (high quality)</option>
+            <option value="medium" selected>Medium compression</option>
+            <option value="high">High compression (smaller file)</option>
+          </select>
+          <button id="btn-compress" class="primary-btn full-width">Compress</button>
+          <p id="compress-stats" class="muted small"></p>
+        </div>
+
+        <div class="tool-card">
+          <h3>Encrypt & Decrypt</h3>
+          <input id="enc-user-pw" type="password" placeholder="Open password" />
+          <input id="enc-owner-pw" type="password" placeholder="Owner password (optional)" />
+          <label class="check-row"><input id="enc-print" type="checkbox" checked /> Allow printing</label>
+          <label class="check-row"><input id="enc-copy" type="checkbox" checked /> Allow copying</label>
+          <label class="check-row"><input id="enc-edit" type="checkbox" /> Allow editing</label>
+          <button id="btn-encrypt" class="primary-btn full-width">Lock PDF</button>
+          <hr />
+          <input id="dec-pw" type="password" placeholder="Password to unlock" />
+          <button id="btn-decrypt" class="full-width">Unlock PDF</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Keyword Redaction</h3>
+          <input id="redact-keywords" type="text" placeholder="secret, ssn, confidential" />
+          <button id="btn-redact-kw" class="danger-btn full-width">Permanently redact words</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Metadata & Sanitize</h3>
+          <button id="btn-load-meta" class="full-width">Read metadata</button>
+          <input id="meta-title" type="text" placeholder="Title" />
+          <input id="meta-author" type="text" placeholder="Author" />
+          <input id="meta-keywords" type="text" placeholder="Keywords" />
+          <div class="row">
+            <button id="btn-save-meta" class="primary-btn">Save</button>
+            <button id="btn-sanitize" class="warn-btn">Strip all</button>
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <h3>Form Filler</h3>
+          <button id="btn-inspect-forms" class="full-width">Find form fields</button>
+          <div id="forms-container" class="forms-container"></div>
+          <label class="check-row"><input id="forms-flatten" type="checkbox" /> Flatten after filling</label>
+          <button id="btn-fill-forms" class="primary-btn full-width hidden">Apply form values</button>
+        </div>
+
+        <div class="tool-card">
+          <h3>Compare Two PDFs</h3>
+          <input id="compare-file-b" type="file" accept="application/pdf" />
+          <button id="btn-compare" class="primary-btn full-width">Compare with current PDF</button>
+        </div>
+      </div>
+
+      <div id="tab-pipeline" class="tab-panel">
+        <div class="tool-card">
+          <h3>Batch & Pipeline</h3>
+          <p class="hint">Upload one or more PDFs, stack steps, and run them all at once.</p>
+          <input id="pipe-files" type="file" accept="application/pdf" multiple />
+          <label class="check-row"><input id="pipe-merge" type="checkbox" /> Merge files first</label>
+          <div class="row">
+            <select id="pipe-add-step">
+              <option value="watermark">Add watermark</option>
+              <option value="page_numbers">Add page numbers</option>
+              <option value="resize">Resize to A4</option>
+              <option value="sanitize">Strip metadata</option>
+              <option value="compress">Compress (medium)</option>
+            </select>
+            <button id="btn-pipe-add" class="small-btn">Add</button>
+          </div>
+          <ul id="pipe-steps-list" class="pipe-list"></ul>
+          <button id="btn-pipe-run" class="primary-btn full-width">Run pipeline</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">Output</h3>
+        <button id="btn-close-modal" class="small-btn">Close</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="sig-modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Draw your signature</h3>
+        <button id="btn-close-sig" class="small-btn">Close</button>
+      </div>
+      <canvas id="sig-pad" width="420" height="160" class="sig-pad"></canvas>
+      <div class="row" style="margin-top:10px;">
+        <button id="btn-clear-sig" class="small-btn">Clear</button>
+        <button id="btn-use-sig" class="primary-btn">Use signature</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/js/annotations.js"></script>
+  <script src="/static/js/thumbnails.js"></script>
+  <script src="/static/js/tools.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
