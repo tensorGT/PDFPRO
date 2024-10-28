@@ -149,6 +149,18 @@ async def api_redact(
     return _pdf_response(pdf_edit.redact_pdf(data, json.loads(boxes), kw_list, fill_color), "redacted.pdf")
 
 
+@app.post("/api/edit/text-blocks")
+async def api_get_text_blocks(file: UploadFile = File(...), page: int = Form(0)):
+    data = await file.read()
+    return {"blocks": pdf_edit.get_text_blocks(data, page)}
+
+
+@app.post("/api/edit/text-blocks/apply")
+async def api_apply_text_blocks(file: UploadFile = File(...), edits: str = Form(...)):
+    data = await file.read()
+    return _pdf_response(pdf_edit.edit_text_blocks(data, json.loads(edits)), "edited.pdf")
+
+
 @app.post("/api/convert/to-images")
 async def api_to_images(
     file: UploadFile = File(...),

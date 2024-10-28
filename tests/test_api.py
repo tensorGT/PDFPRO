@@ -123,6 +123,44 @@ def test_annotations_watermark_and_redact():
     redacted_doc.close()
 
 
+def test_word_style_text_editing():
+    pdf = _make_sample_pdf(("Original paragraph text here",))
+    r = client.post(
+        "/api/edit/text-blocks",
+        files={"file": ("a.pdf", pdf, "application/pdf")},
+        data={"page": "0"},
+    )
+    assert r.status_code == 200
+    blocks = r.json()["blocks"]
+    assert len(blocks) >= 1
+    b = blocks[0]
+
+    edit_payload = [{
+        "page": 0,
+        "x0": b["x0"],
+        "y0": b["y0"],
+        "x1": max(b["x1"], 0.7),
+        "y1": max(b["y1"], 0.25),
+        "text": "Updated paragraph with automatic reflow inside the block",
+        "font_size": 14,
+        "color": "#111827",
+        "bold": True,
+        "italic": False,
+        "bg_color": "#ffffff",
+    }]
+    ar = client.post(
+        "/api/edit/text-blocks/apply",
+        files={"file": ("a.pdf", pdf, "application/pdf")},
+        data={"edits": json.dumps(edit_payload)},
+    )
+    assert ar.status_code == 200
+    edited = fitz.open(stream=ar.content, filetype="pdf")
+    txt = edited[0].get_text()
+    assert "Original paragraph" not in txt
+    assert "Updated paragraph" in txt
+    edited.close()
+
+
 def test_conversions():
     pdf = _make_sample_pdf(("Heading\nSome body text",))
     ir = client.post(

@@ -80,6 +80,16 @@
         <button class="tool-chip" data-tool="signature">Sign</button>
         <button class="tool-chip" data-tool="crop">Crop box</button>
         <button class="tool-chip" data-tool="redact">Redact box</button>
+        <button id="btn-word-edit" class="tool-chip warn-chip">Edit text</button>
+
+        <div id="word-format-bar" class="word-format-bar hidden">
+          <input id="wf-size" type="number" min="6" max="72" value="12" title="Font size" />
+          <input id="wf-color" type="color" value="#000000" title="Text color" />
+          <button id="wf-bold" class="small-btn" title="Bold"><b>B</b></button>
+          <button id="wf-italic" class="small-btn" title="Italic"><i>I</i></button>
+          <button id="wf-delete" class="small-btn danger-btn" title="Clear block">Clear</button>
+          <button id="btn-save-text-edits" class="small-btn primary-btn hidden">Save text edits</button>
+        </div>
 
         <div class="annot-options">
           <input id="annot-color" type="color" value="#facc15" title="Color" />
@@ -102,6 +112,7 @@
         <div id="page-stage" class="page-stage hidden">
           <canvas id="pdf-canvas"></canvas>
           <canvas id="annot-canvas"></canvas>
+          <div id="text-edit-layer" class="text-edit-layer hidden"></div>
         </div>
       </div>
     </section>
@@ -351,6 +362,7 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="/static/js/annotations.js"></script>
+  <script src="/static/js/editor.js"></script>
   <script src="/static/js/thumbnails.js"></script>
   <script src="/static/js/tools.js"></script>
   <script src="/static/js/app.js"></script>

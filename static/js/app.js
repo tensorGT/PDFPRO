@@ -50,6 +50,9 @@ window.ProPdfApp = (() => {
 
     window.ProPdfThumbnails.highlightActive(clamped);
     window.ProPdfAnnotations.redraw();
+    if (window.ProPdfEditor && window.ProPdfEditor.isActive()) {
+      window.ProPdfEditor.exitEditMode();
+    }
   }
 
   async function loadPdfBytes(uint8, name = "document.pdf") {
@@ -114,6 +117,7 @@ window.ProPdfApp = (() => {
 
   function init() {
     window.ProPdfAnnotations.init();
+    window.ProPdfEditor.init();
     window.ProPdfThumbnails.init();
     window.ProPdfTools.init();
 

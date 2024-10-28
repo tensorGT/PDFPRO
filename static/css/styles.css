@@ -309,6 +309,64 @@ button:disabled {
   touch-action: none;
 }
 
+.text-edit-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+}
+
+.editable-pdf-block {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px dashed #3b82f6;
+  border-radius: 3px;
+  padding: 2px 4px;
+  line-height: 1.25;
+  font-family: Helvetica, Arial, sans-serif;
+  outline: none;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  cursor: text;
+}
+
+.editable-pdf-block.selected {
+  border: 2px solid #2563eb;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  z-index: 6;
+}
+
+.editable-pdf-block.dirty {
+  background: rgba(254, 249, 195, 0.96);
+}
+
+.word-format-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.word-format-bar input[type="number"] {
+  width: 54px;
+  padding: 3px 5px;
+  font-size: 12px;
+}
+
+.word-format-bar input[type="color"] {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+}
+
+.warn-chip.active {
+  background: var(--warn);
+  border-color: var(--warn);
+  color: #111827;
+}
+
 /* Reading modes */
 body.theme-dark #pdf-canvas {
   filter: invert(0.9) hue-rotate(180deg);

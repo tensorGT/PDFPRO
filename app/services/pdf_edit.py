@@ -267,3 +267,123 @@ def redact_pdf(data: bytes, boxes: list[dict], keywords: list[str], fill_color: 
         return doc_to_bytes(doc)
     finally:
         doc.close()
+
+
+def _int_color_to_hex(color_int: int) -> str:
+    r = (color_int >> 16) & 255
+    g = (color_int >> 8) & 255
+    b = color_int & 255
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def get_text_blocks(data: bytes, page_num: int = 0) -> list[dict]:
+    """Extract editable text blocks with normalized bounds, font size, and color."""
+    doc = open_pdf_bytes(data)
+    try:
+        if not (0 <= page_num < len(doc)):
+            raise HTTPException(status_code=400, detail="Page number out of range.")
+        page = doc[page_num]
+        rect = page.rect
+        if rect.width <= 0 or rect.height <= 0:
+            return []
+
+        raw = page.get_text("dict")
+        blocks: list[dict] = []
+        for idx, b in enumerate(raw.get("blocks", [])):
+            if b.get("type") != 0:
+                continue
+            bx0, by0, bx1, by1 = b.get("bbox", (0, 0, 0, 0))
+            lines_txt: list[str] = []
+            sizes: list[float] = []
+            colors: list[int] = []
+            flags_list: list[int] = []
+
+            for line in b.get("lines", []):
+                parts: list[str] = []
+                for span in line.get("spans", []):
+                    t = span.get("text", "")
+                    if t:
+                        parts.append(t)
+                        sizes.append(float(span.get("size", 12)))
+                        colors.append(int(span.get("color", 0)))
+                        flags_list.append(int(span.get("flags", 0)))
+                joined = "".join(parts).strip()
+                if joined:
+                    lines_txt.append(joined)
+
+            full_text = "\n".join(lines_txt).strip()
+            if not full_text:
+                continue
+
+            avg_size = round(sum(sizes) / len(sizes), 1) if sizes else 12.0
+            dom_color = _int_color_to_hex(colors[0]) if colors else "#000000"
+            dom_flags = flags_list[0] if flags_list else 0
+
+            blocks.append({
+                "id": idx,
+                "x0": max(0.0, (bx0 - rect.x0) / rect.width),
+                "y0": max(0.0, (by0 - rect.y0) / rect.height),
+                "x1": min(1.0, (bx1 - rect.x0) / rect.width),
+                "y1": min(1.0, (by1 - rect.y0) / rect.height),
+                "text": full_text,
+                "font_size": avg_size,
+                "color": dom_color,
+                "bold": bool(dom_flags & 16),
+                "italic": bool(dom_flags & 2),
+            })
+        return blocks
+    finally:
+        doc.close()
+
+
+def edit_text_blocks(data: bytes, edits: list[dict]) -> bytes:
+    """Wipe original text blocks via redaction and reflow updated text with insert_htmlbox."""
+    if not edits:
+        raise HTTPException(status_code=400, detail="No text edits provided.")
+    doc = open_pdf_bytes(data)
+    try:
+        total = len(doc)
+        by_page: dict[int, list[dict]] = {}
+        for ed in edits:
+            p = int(ed.get("page", 0))
+            if 0 <= p < total:
+                by_page.setdefault(p, []).append(ed)
+
+        for p_idx, page_edits in by_page.items():
+            page = doc[p_idx]
+            rect = page.rect
+
+            # Wipe old text in each edited block without touching images
+            for ed in page_edits:
+                r = _norm_rect(rect, ed)
+                bg = hex_to_rgb01(ed.get("bg_color"), (1.0, 1.0, 1.0))
+                page.add_redact_annot(r, fill=bg)
+            page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
+
+            # Reflow new text into each block
+            for ed in page_edits:
+                new_text = str(ed.get("text", "")).strip()
+                if not new_text:
+                    continue
+                r = _norm_rect(rect, ed)
+                draw_rect = fitz.Rect(r.x0, r.y0, r.x1, min(rect.y1 - 8, max(r.y1 + 14, r.y0 + 28)))
+                fs = float(ed.get("font_size", 12))
+                color = ed.get("color", "#000000")
+                weight = "bold" if ed.get("bold") else "normal"
+                style = "italic" if ed.get("italic") else "normal"
+                escaped = (
+                    new_text.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\n", "<br/>")
+                )
+                html = (
+                    f'<div style="font-family: Helvetica, Arial, sans-serif; '
+                    f'font-size: {fs}pt; color: {color}; font-weight: {weight}; '
+                    f'font-style: {style}; line-height: 1.25;">{escaped}</div>'
+                )
+                page.insert_htmlbox(draw_rect, html)
+
+        return doc_to_bytes(doc)
+    finally:
+        doc.close()
